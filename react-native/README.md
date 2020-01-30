@@ -15,7 +15,7 @@ The app is built using Expo, TypeScript, React Native Paper and Redux. The backe
 
 ## Tasks
 
-Project management has created tasks related to the app and put them on the Kanban board. Pick a single task and try to solve it within a reasonable amount of time (~2h).
+Project management has created tasks related to the app and put them on the 'Kanban board'. Pick a single task and try to solve it within a reasonable amount of time (~2h).
 
 ---
 
