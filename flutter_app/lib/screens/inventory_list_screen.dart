@@ -1,10 +1,14 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/models/inventory.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_app/store/actions/actions.dart';
+import 'package:flutter_app/store/models/models.dart';
+import 'package:flutter_app/store/selectors/selectors.dart';
+import 'package:flutter_app/widgets/loading_indicator.dart';
+import 'package:flutter_app/widgets/qr_code_scanner.dart';
+import 'package:flutter_redux/flutter_redux.dart';
 import 'package:intl/intl.dart';
+import 'package:redux/redux.dart';
 
 class InventoryListScreen extends StatefulWidget {
   final RouteObserver routeObserver;
@@ -18,6 +22,17 @@ class InventoryListScreen extends StatefulWidget {
 class InventoryListState extends State<InventoryListScreen> with RouteAware {
   List<Inventory> inventory = [];
 
+  void _fetchInventory(Store<AppState> store) async {
+    Completer completer = new Completer();
+    store.dispatch(fetchInventory(completer: completer));
+
+    try {
+      await completer.future;
+    } catch (e) {
+      print(e);
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -27,75 +42,129 @@ class InventoryListState extends State<InventoryListScreen> with RouteAware {
   @override
   void didPush() {
     super.didPush();
-    fetchInventory();
   }
 
   @override
   void didPopNext() {
     super.didPopNext();
-    fetchInventory();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Inventory')
-      ),
-      body: ListView(children: <Widget>[
-        Container(
-            decoration:
-                BoxDecoration(border: Border(bottom: BorderSide(width: 0))),
-            padding: EdgeInsets.all(20),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text('Product Code'),
-                ),
-                Text('Scan Date'),
-              ],
-            )),
-        ...inventory.map((Inventory item) {
-          return Container(
-              decoration:
-                  BoxDecoration(border: Border(bottom: BorderSide(width: 0))),
-              padding: EdgeInsets.all(20),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(item.fields['Product Code']),
+    return StoreConnector<AppState, _ViewModel>(
+      onInit: (store) => _fetchInventory(store),
+      converter: _ViewModel.fromStore,
+      builder: (BuildContext context, _ViewModel vm) {
+        return Scaffold(
+          appBar: AppBar(title: Text('Inventory')),
+          body: RefreshIndicator(
+            child: !vm.fetching && !vm.sending
+                ? ListView(
+                    children: <Widget>[
+                      Container(
+                          decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(width: 0))),
+                          padding: EdgeInsets.all(20),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text('Product Code'),
+                              ),
+                              Text('Scan Date'),
+                            ],
+                          )),
+                      ...vm.inventoryList.map((Inventory item) {
+                        return Container(
+                          decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(width: 0))),
+                          padding: EdgeInsets.all(20),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(item.fields.productCode),
+                              ),
+                              Text(DateFormat.yMd()
+                                  .add_jm()
+                                  .format(item.fields.posted)),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  )
+                : Center(
+                    child: LoadingIndicator(),
                   ),
-                  Text(DateFormat.yMd().add_jm().format(item.fields['Posted'])),
-                ],
-              ));
-        }).toList(),
-      ]),
-      floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            openScanner();
-          },
-          tooltip: 'Scan code',
-          child: Icon(Icons.add)),
+            onRefresh: () => _onRefresh(vm),
+          ),
+          floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                _onScanCode(vm);
+              },
+              tooltip: 'Scan code',
+              child: Icon(Icons.add)),
+        );
+      },
     );
   }
 
-  void fetchInventory() async {
-    var url =
-        "https://api.airtable.com/v0/appJkRh9E7qNlXOav/Home?offset=0&maxRecords=100&view=Grid%20view";
-    var response = await http.get(
-      url,
-      headers: {HttpHeaders.authorizationHeader: "Bearer key0k536xA7VpPtEd"},
-    );
-    var result = json.decode(response.body);
+  Future<dynamic> _onRefresh(_ViewModel vm) async {
+    Completer completer = Completer();
 
-    setState(() {
-      inventory = List.from(result['records']).map((record) {
-        return Inventory.fromJson(record);
-      }).toList();
-    });
+    vm.onRefresh(
+      completer: completer,
+    );
+
+    try {
+      return await completer.future;
+    } catch (e) {
+      print(e);
+    }
   }
 
-  void openScanner() {
-    // scanner logic
+  Future<dynamic> _onScanCode(_ViewModel vm) async {
+    Completer completer = Completer();
+    String bnr = await showQrCodeScanner(context);
+
+    vm.onScanCode(
+      code: bnr,
+      completer: completer,
+    );
+
+    try {
+      return await completer.future;
+    } catch (e) {
+      print(e);
+    }
+  }
+}
+
+class _ViewModel {
+  final List<Inventory> inventoryList;
+  final bool sending;
+  final bool fetching;
+  final Function({Completer completer}) onRefresh;
+  final Function({String code, Completer completer}) onScanCode;
+
+  _ViewModel(
+      {@required this.inventoryList,
+      @required this.onRefresh,
+      @required this.sending,
+      @required this.fetching,
+      @required this.onScanCode});
+
+  static _ViewModel fromStore(Store<AppState> store) {
+    return _ViewModel(
+        inventoryList: selectAllInventoryItems(store.state),
+        sending: store.state.inventory.sending,
+        fetching: store.state.inventory.fetching,
+        onRefresh: ({
+          Completer completer,
+        }) {
+          store.dispatch(fetchInventory(completer: completer));
+        },
+        onScanCode: ({String code, Completer completer}) {
+          store.dispatch(sendInventory(code: code, completer: completer));
+        });
   }
 }
