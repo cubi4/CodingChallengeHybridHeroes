@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/store/actions/actions.dart';
 import 'package:flutter_app/store/models/models.dart';
 import 'package:flutter_app/store/selectors/selectors.dart';
+import 'package:flutter_app/widgets/alert_dialog.dart';
 import 'package:flutter_app/widgets/loading_indicator.dart';
 import 'package:flutter_app/widgets/qr_code_scanner.dart';
 import 'package:flutter_redux/flutter_redux.dart';
@@ -126,10 +127,14 @@ class InventoryListState extends State<InventoryListScreen> with RouteAware {
     Completer completer = Completer();
     String bnr = await showQrCodeScanner(context);
 
-    vm.onScanCode(
-      code: bnr,
-      completer: completer,
-    );
+    if (bnr != null) {
+      vm.onScanCode(
+        code: bnr,
+        completer: completer,
+      );
+    } else {
+      showSimpleDialog(context, 'Scanning qr code failed');
+    }
 
     try {
       return await completer.future;
