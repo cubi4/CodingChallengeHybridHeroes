@@ -82,7 +82,9 @@ class InventoryListState extends State<InventoryListScreen> with RouteAware {
                           child: Row(
                             children: <Widget>[
                               Expanded(
-                                child: Text(item.fields.productCode),
+                                child: Text(item.fields.productCode != null
+                                    ? item.fields.productCode
+                                    : "null"),
                               ),
                               Text(DateFormat.yMd()
                                   .add_jm()
@@ -126,8 +128,12 @@ class InventoryListState extends State<InventoryListScreen> with RouteAware {
   Future<dynamic> _onScanCode(_ViewModel vm) async {
     Completer completer = Completer();
     String bnr = await showQrCodeScanner(context);
+    print(bnr);
 
-    if (bnr != null) {
+    if (bnr == 'The user did not grant the camera permission!')
+      showSimpleDialog(
+          context, 'Please grant permission for using the camera.');
+    else if (bnr != null) {
       vm.onScanCode(
         code: bnr,
         completer: completer,

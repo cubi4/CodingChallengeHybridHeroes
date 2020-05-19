@@ -3,17 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 Future<String> showQrCodeScanner(BuildContext context) async {
+  var result;
   try {
-    String result = await BarcodeScanner.scan();
-    return result;
+    result = await BarcodeScanner.scan();
   } on PlatformException catch (e) {
-    print(e);
-    if (e.code == 'PERMISSION_NOT_GRANTED') {
-      print('barcode scaner no permission');
+    var result = ScanResult(
+      type: ResultType.Error,
+      format: BarcodeFormat.unknown,
+    );
+    if (e.code == BarcodeScanner.cameraAccessDenied) {
+      print('The user did not grant the camera permission!');
+      return result.rawContent =
+          'The user did not grant the camera permission!';
+    } else {
+      print('Unknown error: $e');
+      return result.rawContent = null;
     }
-    return null;
-  } catch (e) {
-    print(e);
-    return null;
   }
+  return result.rawContent;
 }
