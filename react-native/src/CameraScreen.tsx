@@ -37,21 +37,19 @@ export default (props: StackScreenProps<StackParamList, "Camera">) => {
           )
         }
       >
-        <View style={styles.fab}>
-          <SafeAreaView>
-            <FAB
-              icon={() => (
-                <MaterialCommunityIcons
-                  name="close"
-                  size={24}
-                  color="#0B5549"
-                />
-              )}
-              label="Close Camera"
-              onPress={() => props.navigation.goBack()}
-            />
-          </SafeAreaView>
-        </View>
+        <SafeAreaView style={styles.fab}>
+          <FAB
+            icon={() => (
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color="#0B5549"
+              />
+            )}
+            label="Close Camera"
+            onPress={() => props.navigation.goBack()}
+          />
+        </SafeAreaView>
       </CameraView>
     );
   }

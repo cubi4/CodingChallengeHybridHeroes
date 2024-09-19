@@ -36,7 +36,7 @@ export default (props: StackScreenProps<StackParamList, "Home">) => {
           />
         }
       >
-        <SafeAreaView>
+        <SafeAreaView edges={["left", "bottom", "right"]}>
           <DataTable>
             <DataTable.Header>
               <DataTable.Title>Product Code</DataTable.Title>
